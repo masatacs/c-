@@ -1,0 +1,434 @@
+using System;
+using System.Linq;
+using System.Windows.Forms;
+using System.Drawing;
+
+class program : Form
+{
+	[STAThread]
+	static void Main()
+	{
+		Application.Run(new Form1());
+	}
+}
+
+class Form1 : Form
+{
+	byte[,] field = {
+		{0,0,0,0,0,0,0,0,0,0},
+		{0,0,0,0,0,0,0,0,0,0},
+		{0,0,0,0,0,0,0,0,0,0},
+		{0,0,0,0,0,0,0,0,0,0},
+		{0,0,0,0,0,0,0,0,0,0},
+		{0,0,0,0,0,0,0,0,0,0},
+		{0,0,0,0,0,0,0,0,0,0},
+		{0,0,0,0,0,0,0,0,0,0},
+		{0,0,0,0,0,0,0,0,0,0},
+		{0,0,0,0,0,0,0,0,0,0},
+		{0,0,0,0,0,0,0,0,0,0},
+		{0,0,0,0,0,0,0,0,0,0},
+		{0,0,0,0,0,0,0,0,0,0},
+		{0,0,0,0,0,0,0,0,0,0},
+		{0,0,0,0,0,0,0,0,0,0},
+		{0,0,0,0,0,0,0,0,0,0},
+		{0,0,0,0,0,0,0,0,0,0},
+		{0,0,0,0,0,0,0,0,0,0},
+		{0,0,0,0,0,0,0,0,0,0},
+		{0,0,0,0,0,0,0,0,0,0},
+		{0,0,0,0,0,0,0,0,0,0},
+	};
+
+	byte[,,] block = {
+		{ 
+			{0,0,0,0},
+			{1,1,0,0},
+			{0,1,1,0},
+			{0,0,0,0}
+		},{ 
+			{0,0,0,0},
+			{0,1,1,0},
+			{1,1,0,0},
+			{0,0,0,0}
+		},{ 
+			{0,0,0,0},
+			{0,1,0,0},
+			{1,1,1,0},
+			{0,0,0,0}
+		},{ 
+			{0,0,0,0},
+			{0,0,0,0},
+			{1,1,1,0},
+			{0,0,0,0}
+		},{ 
+			{0,0,0,0},
+			{1,1,0,0},
+			{1,1,0,0},
+			{0,0,0,0}
+		},{
+			{0,0,0,0},
+			{1,1,0,0},
+			{1,1,0,0},
+			{0,0,0,0}
+		}
+	};
+	
+	byte[,,] NextBlock = {
+		{ 
+			{0,0,0,0},
+			{1,1,0,0},
+			{0,1,1,0},
+			{0,0,0,0}
+		},{ 
+			{0,0,0,0},
+			{0,1,1,0},
+			{1,1,0,0},
+			{0,0,0,0}
+		},{ 
+			{0,0,0,0},
+			{0,1,0,0},
+			{1,1,1,0},
+			{0,0,0,0}
+		},{ 
+			{0,0,0,0},
+			{0,0,0,0},
+			{1,1,1,0},
+			{0,0,0,0}
+		},{ 
+			{0,0,0,0},
+			{1,1,0,0},
+			{1,1,0,0},
+			{0,0,0,0}
+		},{
+			{0,0,0,0},
+			{1,1,0,0},
+			{1,1,0,0},
+			{0,0,0,0}
+		}
+	};
+
+	Random rdm = new Random();
+	
+	int WAIT;
+	int X = 3;
+	int Y = 0;	
+	int PUT = 0;
+	int GRID = 25;
+	int WIDTH = 10;
+	int HEIGHT = 20;
+	int NEXTBLOCK;
+	int INTERVAL = 250;
+	int BLOCKTYPE = 5;
+	int LINE = 0;
+	bool TimerStop = false;
+	bool GameOver = false;
+	
+	SolidBrush[] s;
+	Pen p = new Pen(Color.Black , 3);
+
+	protected override void OnKeyDown(KeyEventArgs e)
+	{
+		switch(e.KeyCode){
+			case Keys.Right:
+				if(detection(1,0,0))X++;
+				break;
+			case Keys.Left:
+				if(detection(-1,0,0))X--;
+				break;
+			case Keys.Down:
+				if(detection(0,1,1))Y++;
+				break;
+			case Keys.Space:
+				TimerStop = true;
+				detection(0,0,1);
+				break;
+			case Keys.Z:
+				byte[,] Lnblock = Lrotate();
+				if(rotateDetection(0,0,Lnblock)){
+					for(int i = 0 ; i <= 3 ; i++){
+						for(int n = 0 ; n <= 3 ; n++){
+							block[WAIT,i,n] = Lnblock[i,n];
+						}
+					}
+				}
+				break;
+			case Keys.C:
+				byte[,] Rnblock = Rrotate();
+				if(rotateDetection(0,0,Rnblock)){
+					for(int i = 0 ; i <= 3 ; i++){
+						for(int n = 0 ; n <= 3 ; n++){
+							block[WAIT,i,n] = Rnblock[i,n];
+						}
+					}
+				}
+				break;
+		}
+		Invalidate();
+	}
+
+	private System.Timers.Timer loopTimer = new System.Timers.Timer();
+
+	protected override void OnLoad(EventArgs e)
+	{
+		ClientSize = new Size((WIDTH + 6) * GRID,HEIGHT * GRID);
+		DoubleBuffered = true;
+		
+		NEXTBLOCK = rdm.Next(0,BLOCKTYPE);
+		WAIT = NEXTBLOCK;
+		NEXTBLOCK = rdm.Next(0,BLOCKTYPE);
+
+		s = new SolidBrush[2];
+		s[0] = new SolidBrush(Color.Red);
+		s[1] = new SolidBrush(Color.Black);
+
+		loopTimer.Interval = INTERVAL;
+		loopTimer.Elapsed += loop;
+		loopTimer.Start();
+	}
+
+	protected override void OnPaint(PaintEventArgs e)
+	{
+		Graphics g = e.Graphics;
+		DrawAll(g);
+	}
+
+	bool rotateDetection(int mx , int my , byte[,] nblock){
+		for(int i = 0 ; i <= 3 ; i++){
+			for(int n = 0 ; n <= 3 ; n++){
+				if(nblock[i,n] == 1){
+					int 	nx = X + mx + n;
+					int 	ny = Y + my + i;
+					if((nx<0)||(ny<0)||(nx>=WIDTH)||(ny>=HEIGHT)||(field[ny,nx] == 1)){
+						return false;
+					}
+				}
+			}
+		}
+		return true;		
+	}
+
+	bool detection(int mx , int my , int type)
+	{
+		for(int i = 0 ; i <= 3 ; i++){
+			for(int n = 0 ; n <= 3 ; n++){
+				if(block[WAIT,i,n] == 1){
+					int 	nx = X + mx + n;
+					int 	ny = Y + my + i;
+					if((nx<0)||(ny<0)||(nx>=WIDTH)||(ny>=HEIGHT)||(field[ny,nx] == 1)){
+						if(type == 1){
+							if((nx>=WIDTH)||(ny>=HEIGHT)||(field[ny,nx] == 1)){
+								BlockDateWrite(X,Y);
+								if(GameState()){
+									loopTimer.Stop();
+									GameOver = true;
+									Invalidate();
+									if(TimerStop){
+										DialogResult ANSER = MessageBox.Show("もう一度やりますか?",
+											"?",
+											MessageBoxButtons.YesNo,
+											MessageBoxIcon.Question);
+										if(ANSER == DialogResult.Yes){
+											init();
+										}else{
+											MessageBox.Show("Good Bye");
+											this.Close();
+										}
+									}
+								}
+								Next();
+							}
+						}
+						return false;
+					}
+				}
+			}
+		}
+		return true;
+	}
+
+	void CutLine()
+	{
+		Console.Clear();
+		PUT = 0;
+		for(int i = 0 ; i <= HEIGHT ; i++){
+			PUT = 0;
+			for(int n = 0 ; n <= WIDTH - 1 ; n++){
+				if(field[i,n] == 1){
+					PUT++;
+					if(PUT >= 10){
+						LINE++;
+						for(int y = i ; y >= 0 ; y--){
+							for(int x = 0 ; x <= WIDTH - 1 ; x++){
+								field[y,x] = 0;
+							}
+							for(int x = 0 ; x <= WIDTH - 1 ; x++){
+								if(y - 1 < 0){
+									continue;
+								}
+								field[y,x] = field[y - 1,x];
+							}
+						}
+						PUT = 0;
+					}
+				}
+			}	
+		}
+	}
+	
+	byte[,] Lrotate()
+	{
+		byte[,] nblock = {
+			{0,0,0,0},
+			{0,0,0,0},
+			{0,0,0,0},
+			{0,0,0,0}
+		};
+		for(int i = 0 ; i <= 3 ; i++){
+			for(int n = 0 ; n <= 3 ; n++){
+				if(4 - i - 1 < 0){
+					continue;
+				}
+				nblock[i,n] = block[WAIT,n,4 - i - 1];
+			}
+		}
+		return nblock;
+	}
+
+	byte[,] Rrotate()
+	{
+		byte[,] nblock = {
+			{0,0,0,0},
+			{0,0,0,0},
+			{0,0,0,0},
+			{0,0,0,0}
+		};
+		for(int i = 0 ; i <= 3 ; i++){
+			for(int n = 0 ; n <= 3 ; n++){
+				if(4 - n - 1 < 0){
+					continue;
+				}
+				nblock[i,n] = block[WAIT,4 - n - 1,i];
+			}
+		}
+		return nblock;
+	}
+
+
+	private void loop(object sender ,System.Timers.ElapsedEventArgs e)
+	{
+		if(detection(0,1,1))Y++;
+		Invalidate(false);
+	}
+	
+	void init()
+	{
+		LINE = 0;
+		GameOver = false;
+		TimerStop = false;
+		loopTimer.Start();
+		for(int i = 0 ; i <= HEIGHT - 1 ; i++){
+			for(int n = 0 ; n <= WIDTH - 1 ; n++){
+				field[i,n] = 0;
+			}
+		}
+	}
+
+	void Next()
+	{
+		CutLine();
+		WAIT = NEXTBLOCK;
+		NEXTBLOCK = rdm.Next(0,BLOCKTYPE);
+		X = 3;
+		Y = 0;
+	}
+
+	void DrawAll(Graphics g)
+	{
+		DrawMap(g);
+		DrawInfo(g);
+		DrawBlock(g);
+		DrawNextBlock(g);
+	}
+	
+	void DrawNextBlock(Graphics g)
+	{
+		g.DrawLine(p,257 + 10,50,257 + 10,145);
+		g.DrawLine(p,257 + 10,145,370 + 10,145);
+		g.DrawLine(p,370 + 10,145,370 + 10,50);
+		for(int i = 0 ; i <= 3 ; i++){
+			for(int n = 0 ; n <= 3 ; n++){
+				if(NextBlock[NEXTBLOCK,i,n] == 1){
+					g.DrawRectangle(p,n * 25 + 280 + 10,i * 25 + 50 + 10,25,25);
+					g.FillRectangle(s[0],n * 25 + 280 + 2 + 10,i * 25 + 50 + 2 + 10,25 - 2,25 - 2);
+				}
+			}
+		}
+	}
+	
+	void BlockDateWrite(int x , int y)
+	{
+		for(int i = 0 ; i <= 3 ; i++){
+			for(int n = 0 ; n <= 3 ; n++){
+				if(block[WAIT,i,n] == 1){
+					field[y + i,n + x] = 1;
+				}
+			}
+		}
+	}
+
+	bool GameState()
+	{
+		for(int n = 0 ; n <= 9 ; n++){
+			if(field[1,n] == 1){
+				return true;
+			}	
+		}
+		return false;
+	}
+
+	
+	void DrawBlock(Graphics g)
+	{
+		for(int i = 0 ; i <= 3 ; i++){
+			for(int n = 0 ; n <= 3 ; n++){
+				if(block[WAIT,i,n] == 1){
+					g.FillRectangle(s[0],(n + X) * 25 + 2,(i + Y) * 25 + 2,25 - 2,25 - 2);
+				}
+			}
+		}
+	}
+
+	void DrawMap(Graphics g)
+	{
+		for(int i = 0 ; i <= HEIGHT - 1 ; i++){
+			for(int n = 0 ; n <= WIDTH - 1 ; n++){
+				g.DrawRectangle(p,n * 25,i * 25,25,25);
+				if(field[i,n] == 1){
+					g.FillRectangle(s[0],n * 25 + 2,i * 25 + 2,25 - 2,25 - 2);
+				}
+			}
+		}
+	}
+	
+	void DrawInfo(Graphics g)
+	{
+		g.DrawString("LINE: " + LINE,new Font("ＭＳゴシック",18),
+		new SolidBrush(Color.Black),
+		270,180);
+		g.DrawString("NEXT",new Font("ＭＳゴシック",18),
+		new SolidBrush(Color.Black),
+		270,40);
+		if(GameOver){
+			g.DrawString("GAME OVER",new Font("ＭＳゴシック",25),
+			new SolidBrush(Color.Black),
+			10,240);
+			g.DrawString("PRESS 'SPACE' KEY",new Font("ＭＳゴシック",16),
+			new SolidBrush(Color.Black),
+			12,280);
+		}
+	}
+
+	public Form1()
+	{
+		this.Text = "テトリス";
+	}
+}
